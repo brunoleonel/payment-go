@@ -5,7 +5,7 @@ import (
 	"github.com/brunoleonel/payment/app/models"
 )
 
-//AccountAdapter convert a Model to a resource
+//AccountAdapter convert a model to a resource and vice-versa
 type AccountAdapter struct {
 }
 

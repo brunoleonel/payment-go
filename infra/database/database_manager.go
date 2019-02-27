@@ -12,6 +12,11 @@ func migrate(db *gorm.DB) {
 
 	db.Model(&models.Transaction{}).AddForeignKey("Account_ID", "accounts(Account_ID)", "NO ACTION", "CASCADE")
 	db.Model(&models.Transaction{}).AddForeignKey("OperationType_ID", "operation_types(OperationType_ID)", "NO ACTION", "CASCADE")
+
+	db.Exec("INSERT INTO operation_types(Description, ChargeOrder) VALUES('COMPRA A VISTA', 2);")
+	db.Exec("INSERT INTO operation_types(Description, ChargeOrder) VALUES('COMPRA PARCELADA', 1);")
+	db.Exec("INSERT INTO operation_types(Description, ChargeOrder) VALUES('SAQUE', 0);")
+	db.Exec("INSERT INTO operation_types(Description, ChargeOrder) VALUES('PAGAMENTO', 0);")
 }
 
 //Connect connect on database
