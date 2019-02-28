@@ -26,3 +26,8 @@ func (repository *transactionRepository) Create(model *models.Transaction) *mode
 	repository.db.Create(model)
 	return model
 }
+
+// //FindPendent lists the pending transactions for an account
+// func (repository *transactionRepository) FindPendent(accountId int64) *[]models.Transaction {
+
+// }

@@ -15,6 +15,11 @@ type TransactionController struct {
 func (c *TransactionController) Post(ctx iris.Context) {
 	var resource resources.Transaction
 	ctx.ReadJSON(&resource)
-	response := c.Service.Create(&resource)
+	response, err := c.Service.Create(&resource)
+	if err != nil {
+		ctx.StatusCode(err.Code)
+		ctx.JSON(err)
+		return
+	}
 	ctx.JSON(response)
 }

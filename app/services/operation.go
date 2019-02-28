@@ -9,7 +9,8 @@ type OperationService interface {
 }
 
 type operationService struct {
-	repository repositories.OperationRepository
+	repository         repositories.OperationRepository
+	transactionService TransactionService
 }
 
 //NewOperationService returns a new OperationService instance

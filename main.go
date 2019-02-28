@@ -16,6 +16,15 @@ const version = "v1"
 
 var db = database.Connect()
 
+var accountRepository = repositories.NewAccountRepository(db)
+var accountService = services.NewAccountService(accountRepository)
+
+var transactionRepository = repositories.NewTransactionRepository(db)
+var transactionService = services.NewTransactionService(transactionRepository, accountService)
+
+var operationRepository = repositories.NewOperationRepository(db)
+var operationService = services.NewOperationService(operationRepository)
+
 func route(path string) string {
 	return fmt.Sprintf("%s/%s", version, path)
 }
@@ -35,22 +44,22 @@ func main() {
 }
 
 func accounts(app *mvc.Application) {
-	accountRepository := repositories.NewAccountRepository(db)
-	accountService := services.NewAccountService(accountRepository)
+	// accountRepository := repositories.NewAccountRepository(db)
+	// accountService := services.NewAccountService(accountRepository)
 	app.Register(accountService)
 	app.Handle(new(controllers.AccountController))
 }
 
 func transactions(app *mvc.Application) {
-	transactionRepository := repositories.NewTransactionRepository(db)
-	transactionService := services.NewTransactionService(transactionRepository)
+	// transactionRepository := repositories.NewTransactionRepository(db)
+	// transactionService := services.NewTransactionService(transactionRepository)
 	app.Register(transactionService)
 	app.Handle(new(controllers.TransactionController))
 }
 
 func payments(app *mvc.Application) {
-	operationRepository := repositories.NewOperationRepository(db)
-	operationService := services.NewOperationService(operationRepository)
+	// operationRepository := repositories.NewOperationRepository(db)
+	// operationService := services.NewOperationService(operationRepository)
 	app.Register(operationService)
 	app.Handle(new(controllers.PaymentController))
 }

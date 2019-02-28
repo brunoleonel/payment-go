@@ -12,36 +12,103 @@ import (
 
 //TransactionService handles the business logic related to transactions
 type TransactionService interface {
-	Create(resource *resources.Transaction) *resources.Transaction
+	Create(resource *resources.Transaction) (response *resources.Transaction, err *resources.Error)
 }
 
 type transactionService struct {
-	repository repositories.TransactionRepository
+	repository     repositories.TransactionRepository
+	accountService AccountService
 }
 
 //NewTransactionService returns a new TransactionService instance
-func NewTransactionService(repository repositories.TransactionRepository) TransactionService {
+func NewTransactionService(repository repositories.TransactionRepository, accountService AccountService) TransactionService {
 	return &transactionService{
-		repository: repository,
+		repository:     repository,
+		accountService: accountService,
 	}
 }
 
 //Create handles the business logic of transaction creation
-func (service *transactionService) Create(resource *resources.Transaction) *resources.Transaction {
+func (service *transactionService) Create(resource *resources.Transaction) (response *resources.Transaction, err *resources.Error) {
 	var adapter adapters.TransactionAdapter
 
+	account := service.accountService.Find(resource.AccountID)
+
+	err = service.checkLimits(account, resource)
+	if err != nil {
+		return
+	}
+
 	model := adapter.ToEntity(resource)
-	processed := processValue(model, model.Amount)
+	model.Amount = -model.Amount
+	processed := service.processValue(model, model.Amount)
 	transaction := service.repository.Create(processed)
-	response := adapter.FromEntity(transaction)
-	return response
+
+	service.adjustLimits(account, processed)
+
+	processed.Amount = -processed.Amount
+	response = adapter.FromEntity(transaction)
+	return
 }
 
-func processValue(model *models.Transaction, balance float32) *models.Transaction {
+func (service *transactionService) processValue(model *models.Transaction, balance float32) *models.Transaction {
 	date := time.Now()
 	due := date.AddDate(0, 0, 1)
 	model.Balance = balance
 	model.EventDate = &date
 	model.DueDate = &due
 	return model
+}
+
+func (service *transactionService) checkLimits(account *models.Account, resource *resources.Transaction) (err *resources.Error) {
+	err = service.checkCreditLimit(account, resource)
+	if err != nil {
+		return
+	}
+
+	err = service.checkWithdrawalLimit(account, resource)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func (service *transactionService) checkCreditLimit(account *models.Account, resource *resources.Transaction) (err *resources.Error) {
+	creditOp := resource.OperationTypeID != 3
+	hasLimit := account.AvailableCreditLimit >= resource.Amount
+	if creditOp && !hasLimit {
+		err = &resources.Error{
+			Code:    400,
+			Message: "Credit limit exceeded",
+		}
+	}
+	return
+}
+
+func (service *transactionService) checkWithdrawalLimit(account *models.Account, resource *resources.Transaction) (err *resources.Error) {
+	withdOp := resource.OperationTypeID == 3
+	hasLimit := account.AvailableWithdrawalLimit >= resource.Amount
+	if withdOp && !hasLimit {
+		err = &resources.Error{
+			Code:    400,
+			Message: "Withdrawal limit exceeded",
+		}
+	}
+	return
+}
+
+func (service *transactionService) adjustLimits(account *models.Account, transaction *models.Transaction) {
+	var adapter adapters.AccountAdapter
+
+	if transaction.OperationTypeID != 3 {
+		account.AvailableCreditLimit += transaction.Amount
+		resource := adapter.FromEntity(account)
+		service.accountService.Update(account.AccountID, resource)
+		return
+	}
+
+	account.AvailableWithdrawalLimit += transaction.Amount
+	resource := adapter.FromEntity(account)
+	service.accountService.Update(account.AccountID, resource)
 }

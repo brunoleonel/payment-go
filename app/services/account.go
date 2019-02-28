@@ -3,6 +3,8 @@ package services
 import (
 	"errors"
 
+	"github.com/brunoleonel/payment/app/models"
+
 	"github.com/brunoleonel/payment/app/adapters"
 	"github.com/brunoleonel/payment/app/http/resources"
 	"github.com/brunoleonel/payment/app/repositories"
@@ -13,6 +15,7 @@ type AccountService interface {
 	Create(resource *resources.Account) *resources.Account
 	Update(id int64, resource *resources.Account) (response *resources.Account, err error)
 	GetLimits() *[]*resources.Account
+	Find(id int64) *models.Account
 }
 
 type accountService struct {
@@ -58,4 +61,9 @@ func (service *accountService) GetLimits() *[]*resources.Account {
 	accounts := service.Repository.List()
 	list := adapter.FromEntityCollection(accounts)
 	return list
+}
+
+//Find finds an account
+func (service *accountService) Find(id int64) *models.Account {
+	return service.Repository.Find(id)
 }
