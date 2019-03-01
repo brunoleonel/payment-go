@@ -22,7 +22,6 @@ func migrate(db *gorm.DB) {
 		db.Exec("INSERT INTO operation_types(Description, ChargeOrder) VALUES('SAQUE', 0);")
 		db.Exec("INSERT INTO operation_types(Description, ChargeOrder) VALUES('PAGAMENTO', 0);")
 	}
-
 }
 
 //Connect connect on database
@@ -34,6 +33,6 @@ func Connect() *gorm.DB {
 	}
 
 	go migrate(db)
-
+	db.LogMode(true)
 	return db
 }

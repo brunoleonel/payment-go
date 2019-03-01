@@ -1,6 +1,11 @@
 package repositories
 
 import (
+	"fmt"
+	"time"
+
+	"github.com/brunoleonel/payment/app/http/resources"
+
 	"github.com/brunoleonel/payment/app/models"
 	"github.com/jinzhu/gorm"
 )
@@ -8,6 +13,8 @@ import (
 //TransactionRepository handles the operations related to transactions on the database
 type TransactionRepository interface {
 	Create(model *models.Transaction) *models.Transaction
+	FindPendent(accountID int64) (result models.Transaction, err *resources.Error)
+	Update(model *models.Transaction) *models.Transaction
 }
 
 type transactionRepository struct {
@@ -27,7 +34,41 @@ func (repository *transactionRepository) Create(model *models.Transaction) *mode
 	return model
 }
 
-// //FindPendent lists the pending transactions for an account
-// func (repository *transactionRepository) FindPendent(accountId int64) *[]models.Transaction {
+//Update updates a transaction
+func (repository *transactionRepository) Update(model *models.Transaction) *models.Transaction {
+	repository.db.Update(model)
+	return model
+}
 
-// }
+//FindPendent lists the pending transactions for an account
+func (repository *transactionRepository) FindPendent(accountID int64) (result models.Transaction, err *resources.Error) {
+
+	var joins = fmt.Sprintf(
+		"%s %s %s",
+		"INNER JOIN operation_types",
+		"ON transactions.OperationType_ID = operation_types.OperationType_ID",
+		"AND operation_types.OperationType_ID <> 1",
+	)
+
+	query := repository.db.Table("transactions")
+	query = query.Joins(joins)
+	query = query.Select(
+		"transactions.*, operation_types.ChargeOrder",
+	)
+	query = query.Where(
+		"transactions.Account_ID = ? AND transactions.Balance < 0 AND transactions.DueDate >= ?",
+		accountID,
+		time.Now(),
+	)
+	query = query.Order("operation_types.ChargeOrder, transactions.EventDate")
+	notFound := query.First(&result).RecordNotFound()
+
+	if notFound {
+		err = &resources.Error{
+			Code:    404,
+			Message: "No pendent transaction found",
+		}
+	}
+
+	return
+}

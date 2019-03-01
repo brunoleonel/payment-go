@@ -13,6 +13,10 @@ import (
 //TransactionService handles the business logic related to transactions
 type TransactionService interface {
 	Create(resource *resources.Transaction) (response *resources.Transaction, err *resources.Error)
+	ListPendent(accountID int64) (transaction models.Transaction, err *resources.Error)
+	AdjustLimits(account *models.Account, transaction *models.Transaction)
+	CreateCreditTransaction(model *models.Transaction)
+	Update(model *models.Transaction)
 }
 
 type transactionService struct {
@@ -44,7 +48,7 @@ func (service *transactionService) Create(resource *resources.Transaction) (resp
 	processed := service.processValue(model, model.Amount)
 	transaction := service.repository.Create(processed)
 
-	service.adjustLimits(account, processed)
+	service.AdjustLimits(account, processed)
 
 	processed.Amount = -processed.Amount
 	response = adapter.FromEntity(transaction)
@@ -98,7 +102,8 @@ func (service *transactionService) checkWithdrawalLimit(account *models.Account,
 	return
 }
 
-func (service *transactionService) adjustLimits(account *models.Account, transaction *models.Transaction) {
+//AdjustLimits handles the logic of limit adjustment
+func (service *transactionService) AdjustLimits(account *models.Account, transaction *models.Transaction) {
 	var adapter adapters.AccountAdapter
 
 	if transaction.OperationTypeID != 3 {
@@ -111,4 +116,22 @@ func (service *transactionService) adjustLimits(account *models.Account, transac
 	account.AvailableWithdrawalLimit += transaction.Amount
 	resource := adapter.FromEntity(account)
 	service.accountService.Update(account.AccountID, resource)
+}
+
+//ListPendent handle the logic to list the pendent transactions
+func (service *transactionService) ListPendent(accountID int64) (result models.Transaction, err *resources.Error) {
+	result, err = service.repository.FindPendent(accountID)
+	return
+}
+
+//CreateCreditTransaction handles the business logic of transaction creation for funds
+func (service *transactionService) CreateCreditTransaction(model *models.Transaction) {
+	processed := service.processValue(model, model.Amount)
+	service.repository.Create(processed)
+	return
+}
+
+//Update updates a transaction when there's a model in hand
+func (service *transactionService) Update(model *models.Transaction) {
+	service.repository.Update(model)
 }
