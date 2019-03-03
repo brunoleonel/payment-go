@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/brunoleonel/payment/app/http/resources"
 	"github.com/brunoleonel/payment/app/models"
 	"github.com/jinzhu/gorm"
 )
@@ -9,7 +10,7 @@ import (
 type AccountRepository interface {
 	Create(account *models.Account) *models.Account
 	Update(account *models.Account) *models.Account
-	Find(id int64) *models.Account
+	Find(id int64) (account *models.Account, err *resources.Error)
 	List() []models.Account
 }
 
@@ -37,10 +38,16 @@ func (repository *accountRepository) Update(account *models.Account) *models.Acc
 }
 
 //Find find an account
-func (repository *accountRepository) Find(id int64) *models.Account {
-	var account models.Account
-	repository.DB.Find(&account, id)
-	return &account
+func (repository *accountRepository) Find(id int64) (account *models.Account, err *resources.Error) {
+	account = &models.Account{}
+	notFound := repository.DB.First(account, id).RecordNotFound()
+	if notFound {
+		err = &resources.Error{
+			Code:    404,
+			Message: "Account not found",
+		}
+	}
+	return
 }
 
 //List the accounts

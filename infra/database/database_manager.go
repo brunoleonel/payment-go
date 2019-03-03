@@ -1,6 +1,10 @@
 package database
 
 import (
+	"fmt"
+	"os"
+	"time"
+
 	"github.com/brunoleonel/payment/app/models"
 	"github.com/jinzhu/gorm"
 )
@@ -26,7 +30,17 @@ func migrate(db *gorm.DB) {
 
 //Connect connect on database
 func Connect() *gorm.DB {
-	db, err := gorm.Open("mysql", "root:root@/payment?charset=utf8mb4&parseTime=True")
+
+	connectionString := fmt.Sprintf(
+		"%s:%s@tcp(db:3306)/%s?charset=utf8mb4&parseTime=True",
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASSWORD"),
+		os.Getenv("DATABASE"),
+	)
+
+	time.Sleep(20 * time.Second)
+
+	db, err := gorm.Open("mysql", connectionString)
 	if err != nil {
 		defer db.Close()
 		panic(err.Error())

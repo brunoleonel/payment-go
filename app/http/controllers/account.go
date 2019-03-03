@@ -24,10 +24,8 @@ func (c *AccountController) PatchBy(id int64, ctx iris.Context) {
 	response, err := c.Service.Update(id, &account)
 
 	if err != nil {
-		ctx.StatusCode(iris.StatusNotFound)
-		ctx.JSON(resources.Error{
-			Message: err.Error(),
-		})
+		ctx.StatusCode(err.Code)
+		ctx.JSON(err.Message)
 		return
 	}
 	ctx.JSON(&response)

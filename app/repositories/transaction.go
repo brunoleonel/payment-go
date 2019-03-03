@@ -36,7 +36,7 @@ func (repository *transactionRepository) Create(model *models.Transaction) *mode
 
 //Update updates a transaction
 func (repository *transactionRepository) Update(model *models.Transaction) *models.Transaction {
-	repository.db.Update(model)
+	repository.db.Save(model)
 	return model
 }
 
@@ -47,7 +47,7 @@ func (repository *transactionRepository) FindPendent(accountID int64) (result mo
 		"%s %s %s",
 		"INNER JOIN operation_types",
 		"ON transactions.OperationType_ID = operation_types.OperationType_ID",
-		"AND operation_types.OperationType_ID <> 1",
+		"AND operation_types.OperationType_ID <> 4",
 	)
 
 	query := repository.db.Table("transactions")
@@ -55,12 +55,10 @@ func (repository *transactionRepository) FindPendent(accountID int64) (result mo
 	query = query.Select(
 		"transactions.*, operation_types.ChargeOrder",
 	)
-	query = query.Where(
-		"transactions.Account_ID = ? AND transactions.Balance < 0 AND transactions.DueDate >= ?",
-		accountID,
-		time.Now(),
-	)
-	query = query.Order("operation_types.ChargeOrder, transactions.EventDate")
+	query = query.Where("transactions.Account_ID = ?", accountID)
+	query = query.Where("transactions.Balance < 0")
+	query = query.Where("transactions.DueDate >= ?", time.Now())
+	query = query.Order("operation_types.ChargeOrder ASC, transactions.EventDate DESC")
 	notFound := query.First(&result).RecordNotFound()
 
 	if notFound {

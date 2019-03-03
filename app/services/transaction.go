@@ -14,7 +14,6 @@ import (
 type TransactionService interface {
 	Create(resource *resources.Transaction) (response *resources.Transaction, err *resources.Error)
 	ListPendent(accountID int64) (transaction models.Transaction, err *resources.Error)
-	AdjustLimits(account *models.Account, transaction *models.Transaction)
 	CreateCreditTransaction(model *models.Transaction)
 	Update(model *models.Transaction)
 }
@@ -36,7 +35,11 @@ func NewTransactionService(repository repositories.TransactionRepository, accoun
 func (service *transactionService) Create(resource *resources.Transaction) (response *resources.Transaction, err *resources.Error) {
 	var adapter adapters.TransactionAdapter
 
-	account := service.accountService.Find(resource.AccountID)
+	account, err := service.accountService.Find(resource.AccountID)
+
+	if err != nil {
+		return
+	}
 
 	err = service.checkLimits(account, resource)
 	if err != nil {
@@ -48,7 +51,7 @@ func (service *transactionService) Create(resource *resources.Transaction) (resp
 	processed := service.processValue(model, model.Amount)
 	transaction := service.repository.Create(processed)
 
-	service.AdjustLimits(account, processed)
+	service.accountService.AdjustAccountLimit(resource.AccountID, model.Amount, resource.OperationTypeID) //adjustLimits(account, processed)
 
 	processed.Amount = -processed.Amount
 	response = adapter.FromEntity(transaction)
@@ -102,21 +105,20 @@ func (service *transactionService) checkWithdrawalLimit(account *models.Account,
 	return
 }
 
-//AdjustLimits handles the logic of limit adjustment
-func (service *transactionService) AdjustLimits(account *models.Account, transaction *models.Transaction) {
-	var adapter adapters.AccountAdapter
+// func (service *transactionService) adjustLimits(account *models.Account, transaction *models.Transaction) {
+// 	var adapter adapters.AccountAdapter
 
-	if transaction.OperationTypeID != 3 {
-		account.AvailableCreditLimit += transaction.Amount
-		resource := adapter.FromEntity(account)
-		service.accountService.Update(account.AccountID, resource)
-		return
-	}
+// 	if transaction.OperationTypeID != 3 {
+// 		account.AvailableCreditLimit += transaction.Amount
+// 		resource := adapter.FromEntity(account)
+// 		service.accountService.Update(account.AccountID, resource)
+// 		return
+// 	}
 
-	account.AvailableWithdrawalLimit += transaction.Amount
-	resource := adapter.FromEntity(account)
-	service.accountService.Update(account.AccountID, resource)
-}
+// 	account.AvailableWithdrawalLimit += transaction.Amount
+// 	resource := adapter.FromEntity(account)
+// 	service.accountService.Update(account.AccountID, resource)
+// }
 
 //ListPendent handle the logic to list the pendent transactions
 func (service *transactionService) ListPendent(accountID int64) (result models.Transaction, err *resources.Error) {
