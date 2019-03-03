@@ -38,6 +38,7 @@ func Connect() *gorm.DB {
 		os.Getenv("DATABASE"),
 	)
 
+	//Wait MySQL container to be ready
 	time.Sleep(20 * time.Second)
 
 	db, err := gorm.Open("mysql", connectionString)
