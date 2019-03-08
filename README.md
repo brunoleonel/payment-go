@@ -7,6 +7,8 @@ Powered by:
 
 **GORM** - https://github.com/jinzhu/gorm
 
+**Testify** - https://github.com/stretchr/testify
+
 # Directory structure
 
 **main.go** -> Application bootstraper
@@ -41,3 +43,10 @@ Powered by:
 
 	*docker-compose up --build*
 3. For database check  with external tool, connect on port 3307, exposed by the container. No volumes were created, but can be adjusted on docker-compose.yml if needed
+
+# Testing
+
+1. Install *stretchr/testify*:
+   
+	*go get github.com/stretchr/testify*
+2. Run go test -v tests/\*/*.go
