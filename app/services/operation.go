@@ -10,7 +10,7 @@ import (
 
 //OperationService handles the business logic related to payments
 type OperationService interface {
-	CreatePayment(resource *resources.Payment) (payment *resources.Payment, err *resources.Error)
+	CreatePayment(resourceList []resources.Payment) (payments *resources.PaymentResponse)
 }
 
 type operationService struct {
@@ -29,38 +29,54 @@ func NewOperationService(repository repositories.OperationRepository, transactio
 }
 
 //CreatePayment handles the logic to create a payment
-func (service *operationService) CreatePayment(resource *resources.Payment) (payment *resources.Payment, err *resources.Error) {
-	transaction, err := service.transactionService.ListPendent(resource.AccountID)
-	if err != nil {
-		return
-	}
+func (service *operationService) CreatePayment(resourceList []resources.Payment) (response *resources.PaymentResponse) {
 
-	originalBalance := transaction.Balance
-	balance := originalBalance + resource.Amount
+	response = &resources.PaymentResponse{}
+	failedList := make([]resources.FailedPayment, 0)
+	paidList := make([]resources.Payment, 0)
 
-	if balance >= 0 {
-		limit := math.Abs(float64(originalBalance))
-		transaction.Balance = 0
-		service.transactionService.Update(&transaction)
-		service.accountService.AdjustAccountLimit(resource.AccountID, float32(limit), transaction.OperationTypeID)
+	for _, resource := range resourceList {
 
-		if balance > 0 {
-			var creditTransaction models.Transaction
-			creditTransaction.OperationTypeID = 4
-			creditTransaction.AccountID = resource.AccountID
-			creditTransaction.Amount = balance
-			service.transactionService.CreateCreditTransaction(&creditTransaction)
+		transaction, err := service.transactionService.ListPendent(resource.AccountID)
+		if err != nil {
+			failed := resources.FailedPayment{
+				Payment: resource,
+				Reason:  err.Message,
+			}
+			failedList = append(failedList, failed)
+			continue
 		}
 
-		payment = resource
-		return
+		originalBalance := transaction.Balance
+		balance := originalBalance + resource.Amount
+
+		if balance >= 0 {
+			limit := math.Abs(float64(originalBalance))
+			transaction.Balance = 0
+			service.transactionService.Update(&transaction)
+			service.accountService.AdjustAccountLimit(resource.AccountID, float32(limit), transaction.OperationTypeID)
+
+			if balance > 0 {
+				var creditTransaction models.Transaction
+				creditTransaction.OperationTypeID = 4
+				creditTransaction.AccountID = resource.AccountID
+				creditTransaction.Amount = balance
+				service.transactionService.CreateCreditTransaction(&creditTransaction)
+			}
+
+			paidList = append(paidList, resource)
+			continue
+		}
+
+		limit := resource.Amount
+		transaction.Balance = balance
+		service.transactionService.Update(&transaction)
+		service.accountService.AdjustAccountLimit(resource.AccountID, float32(limit), transaction.OperationTypeID)
+		paidList = append(paidList, resource)
 	}
 
-	limit := resource.Amount
-	transaction.Balance = balance
-	service.transactionService.Update(&transaction)
-	service.accountService.AdjustAccountLimit(resource.AccountID, float32(limit), transaction.OperationTypeID)
-	payment = resource
+	response.Failed = failedList
+	response.Paid = paidList
 
 	return
 }

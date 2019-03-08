@@ -13,13 +13,8 @@ type PaymentController struct {
 
 //Post creates one or more payments
 func (c *PaymentController) Post(ctx iris.Context) {
-	var resource resources.Payment
-	ctx.ReadJSON(&resource)
-	response, err := c.Service.CreatePayment(&resource)
-	if err != nil {
-		ctx.StatusCode(err.Code)
-		ctx.JSON(err)
-		return
-	}
+	var resources []resources.Payment
+	ctx.ReadJSON(&resources)
+	response := c.Service.CreatePayment(resources)
 	ctx.JSON(response)
 }
